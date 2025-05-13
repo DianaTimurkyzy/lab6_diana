@@ -1,15 +1,28 @@
 const Product = require("../models/Product");
 const Cart = require("../models/Cart");
-
 const { STATUS_CODE } = require("../constants/statusCode");
 
-exports.addProductToCart = (request, response) => {
-  Product.add(request.body);
-  Cart.add(request.body.name);
+const addProductToCart = (req, res) => {
+  const { name, description, price } = req.body;
+  const product = new Product(name, description, parseFloat(price));
+  Product.add(product);
 
-  response.status(STATUS_CODE.FOUND).redirect("/products/new");
+  try {
+    Cart.add(name);
+    res.status(STATUS_CODE.FOUND).redirect("/products/new");
+  } catch (error) {
+    res.status(STATUS_CODE.NOT_FOUND).render("404", {
+      headTitle: "404 - Product Not Found",
+      menuLinks: require("../constants/navigation").MENU_LINKS,
+      activeLinkPath: "",
+      cartCount: Cart.getProductsQuantity(),
+    });
+  }
 };
 
-exports.getProductsCount = () => {
-  return Cart.getProductsQuantity();
+const getProductsCount = (req, res) => {
+  const quantity = Cart.getProductsQuantity();
+  res.json({ quantity });
 };
+
+module.exports = { addProductToCart, getProductsCount };

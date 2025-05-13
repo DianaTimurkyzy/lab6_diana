@@ -1,15 +1,12 @@
 const Product = require("../models/Product");
-
-const { MENU_LINKS } = require("../constants/navigation");
+const Cart = require("../models/Cart");
 const { STATUS_CODE } = require("../constants/statusCode");
+const { MENU_LINKS } = require("../constants/navigation");
 
-const cartController = require("./cartController");
-
-exports.getProductsView = (request, response) => {
-  const cartCount = cartController.getProductsCount();
+const getProductsView = (req, res) => {
   const products = Product.getAll();
-
-  response.render("products.ejs", {
+  const cartCount = Cart.getProductsQuantity();
+  res.render("products", {
     headTitle: "Shop - Products",
     path: "/",
     menuLinks: MENU_LINKS,
@@ -19,10 +16,9 @@ exports.getProductsView = (request, response) => {
   });
 };
 
-exports.getAddProductView = (request, response) => {
-  const cartCount = cartController.getProductsCount();
-
-  response.render("add-product.ejs", {
+const getAddProductView = (req, res) => {
+  const cartCount = Cart.getProductsQuantity();
+  res.render("add-product", {
     headTitle: "Shop - Add product",
     path: "/add",
     menuLinks: MENU_LINKS,
@@ -31,39 +27,51 @@ exports.getAddProductView = (request, response) => {
   });
 };
 
-exports.getNewProductView = (request, response) => {
-  const cartCount = cartController.getProductsCount();
+const getNewProductView = (req, res) => {
   const newestProduct = Product.getLast();
-
-  response.render("new-product.ejs", {
+  const cartCount = Cart.getProductsQuantity();
+  res.render("new-product", {
     headTitle: "Shop - New product",
     path: "/new",
-    activeLinkPath: "/products/new",
     menuLinks: MENU_LINKS,
+    activeLinkPath: "/products/new",
     newestProduct,
     cartCount,
   });
 };
 
-exports.getProductView = (request, response) => {
-  const cartCount = cartController.getProductsCount();
-  const name = request.params.name;
-
+const getProductView = (req, res) => {
+  const { name } = req.params;
   const product = Product.findByName(name);
-
-  response.render("product.ejs", {
-    headTitle: "Shop - Product",
-    path: `/products/${name}`,
-    activeLinkPath: `/products/${name}`,
+  const cartCount = Cart.getProductsQuantity();
+  res.render("product", {
+    headTitle: `Shop - ${product ? product.name : "Product Not Found"}`,
+    path: `/${name}`,
     menuLinks: MENU_LINKS,
+    activeLinkPath: `/products/${name}`,
     product,
     cartCount,
   });
 };
 
-exports.deleteProduct = (request, response) => {
-  const name = request.params.name;
+const deleteProduct = (req, res) => {
+  const { name } = req.params;
   Product.deleteByName(name);
+  const cartItems = Cart.getItems();
+  const updatedItems = cartItems.filter(item => item.product.name !== name);
+  Cart.clearCart();
+  updatedItems.forEach(item => {
+    for (let i = 0; i < item.quantity; i++) {
+      Cart.add(item.product.name);
+    }
+  });
+  res.status(STATUS_CODE.OK).json({ success: true });
+};
 
-  response.status(STATUS_CODE.OK).json({ success: true });
+module.exports = {
+  getProductsView,
+  getAddProductView,
+  getNewProductView,
+  getProductView,
+  deleteProduct,
 };
